@@ -1,0 +1,37 @@
+{
+  "short_name": "KENA App",
+  "name": "KENA Driving School & Computer College",
+  "description": "Official mobile app for driving lessons, NTSA test readiness, computer packages, and tuition payments.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/?source=pwa",
+  "background_color": "#020617",
+  "theme_color": "#ea580c",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["education", "business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Student Portal",
+      "url": "/portal/student",
+      "description": "Check course progress and NTSA readiness"
+    },
+    {
+      "name": "Instructor Gradebook",
+      "url": "/portal/instructor/gradebook",
+      "description": "Grade driving candidates on practical maneuvers"
+    },
+    {
+      "name": "M-Pesa Tuition",
+      "url": "/portal/student/payments",
+      "description": "View official receipts and fee balances"
+    }
+  ]
+}

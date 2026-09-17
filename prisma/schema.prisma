@@ -1,0 +1,262 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Student {
+  id               String         @id @default(cuid())
+  firstName        String
+  lastName         String
+  email            String         @unique
+  phone            String
+  idNumber         String         @unique
+  licenseCategory  String         // e.g. "Category B (Light Vehicle)", "Category A (Motorcycle)"
+  transmission     String         @default("MANUAL") // MANUAL, AUTOMATIC
+  status           String         @default("ENROLLED") // ENROLLED, IN_TRAINING, TEST_READY, GRADUATED, INACTIVE
+  packageId        String?
+  package          Package?       @relation(fields: [packageId], references: [id])
+  instructorId     String?
+  assignedInstructor Instructor?  @relation(fields: [instructorId], references: [id])
+  requiredHours    Float          @default(20.0)
+  completedHours   Float          @default(0.0)
+  balance          Float          @default(0.0)
+  pdlNumber        String?        // NTSA Provisional Driving License No.
+  eCitizenRef      String?        // eCitizen Application Reference
+  admissionNumber  String?        @unique // Manual admission number e.g. KNA-2026-001
+  dateOfBirth      String?        // e.g. "1998-05-14"
+  customTuitionFee Float?         // Independent manual fee override
+  nextOfKinName    String?
+  nextOfKinPhone   String?
+  nextOfKinRelation String?       // Parent, Spouse, Sibling, Guardian, Other
+  referralSource   String?        // Google, Former student, Friend, Facebook, Tiktok, Instagram, x, Other
+  branch           String         @default("Tabby House, Thika")
+  password         String         @default("student123")
+  notes            String?
+  lessons          Lesson[]
+  payments         Payment[]
+  exams            Exam[]
+  skills           StudentSkill[]
+  gradebookEntries GradebookEntry[]
+  practicalSheetEntries PracticalSheetEntry[]
+  certificateStatus String?     @default("UNCOLLECTED") // UNCOLLECTED, PRINTING, COLLECTED
+  certificateNumber String?
+  certificateIssueDate DateTime?
+  certificateRemarks String?
+  moduleProgress    StudentModuleProgress[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Instructor {
+  id                 String     @id @default(cuid())
+  firstName          String
+  lastName           String
+  email              String     @unique
+  phone              String
+  licenseNumber      String     @unique
+  specializations    String     // e.g. "Manual, Automatic, Defensive Driving"
+  category           String     @default("DRIVING") // DRIVING, COMPUTER, AI
+  department         String     @default("Driving School") // "Driving School", "Computer College", "Modern AI Academy"
+  modulesTaught      String?    // e.g. "MS Word, MS Excel, MS Access" or "ChatGPT, Prompt Engineering"
+  labStation         String?    // e.g. "Lab 1 (Station 04)", "AI Innovation Lab"
+  certifications     String?    // e.g. "ICDL Certified, Diploma in IT", "Google AI Certified"
+  status             String     @default("ACTIVE") // ACTIVE, ON_LEAVE, INACTIVE
+  rating             Float      @default(4.9)
+  assignedVehicleId  String?
+  vehicle            Vehicle?   @relation("InstructorVehicle", fields: [assignedVehicleId], references: [id])
+  password           String     @default("instructor123")
+  students           Student[]
+  lessons            Lesson[]
+  gradebookEntries   GradebookEntry[]
+  practicalSignOffs  PracticalSheetEntry[]
+  moduleSignOffs     StudentModuleProgress[]
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+model Vehicle {
+  id                  String       @id @default(cuid())
+  make                String
+  model               String
+  year                Int
+  registrationPlate   String       @unique
+  transmission        String       // MANUAL, AUTOMATIC
+  category            String       // "Sedan", "Hatchback", "SUV", "Motorcycle"
+  status              String       @default("AVAILABLE") // AVAILABLE, IN_SERVICE, MAINTENANCE
+  mileage             Int          @default(0)
+  insuranceExpiry     DateTime
+  inspectionExpiry    DateTime
+  lastServiceDate     DateTime?
+  assignedInstructors Instructor[] @relation("InstructorVehicle")
+  lessons             Lesson[]
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+}
+
+model Lesson {
+  id                 String     @id @default(cuid())
+  studentId          String
+  student            Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  instructorId       String
+  instructor         Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  vehicleId          String?
+  vehicle            Vehicle?   @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  lessonType         String     @default("PRACTICAL_DRIVING") // PRACTICAL_DRIVING, THEORY_CLASS, MOCK_TEST, PRACTICAL_TEST
+  startTime          DateTime
+  endTime            DateTime
+  durationHours      Float      @default(1.5)
+  status             String     @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW
+  pickupLocation     String?
+  instructorFeedback String?
+  rating             Int?
+  skillsCovered      String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+model Package {
+  id          String    @id @default(cuid())
+  name        String
+  category    String
+  totalHours  Int
+  price       Float
+  description String
+  students    Student[]
+  createdAt   DateTime  @default(now())
+}
+
+model Payment {
+  id             String   @id @default(cuid())
+  studentId      String
+  student        Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  amount         Float
+  paymentMethod  String   // CASH, CREDIT_CARD, BANK_TRANSFER, MOBILE_MONEY
+  transactionRef String   @unique
+  status         String   @default("COMPLETED") // COMPLETED, PENDING, REFUNDED
+  notes          String?
+  createdAt      DateTime @default(now())
+}
+
+model Exam {
+  id            String   @id @default(cuid())
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  examType      String   // THEORY, PRACTICAL
+  scheduledDate DateTime
+  testCenter    String
+  examinerName  String?
+  score         Int?
+  result        String   @default("PENDING") // PENDING, PASSED, FAILED
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model StudentSkill {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  skillName String
+  status    String   @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, PROFICIENT, MASTERED
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, skillName])
+}
+
+model CourseContent {
+  id          String   @id @default(cuid())
+  title       String
+  category    String   // "DRIVING", "COMPUTER", "AI"
+  contentType String   // "PDF", "VIDEO", "DOCUMENT"
+  url         String
+  description String?
+  fileSize    String?  // e.g. "4.2 MB", "18 mins"
+  createdAt   DateTime @default(now())
+}
+
+model GradebookEntry {
+  id           String     @id @default(cuid())
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  topic        String     // e.g. "Model Town Board", "Hill Start & Clutch Balance", "Parallel Parking"
+  score        Int        // 0 - 100
+  status       String     @default("PASS") // PASS, NEEDS_WORK, EXCELLENT
+  remarks      String?
+  gradedAt     DateTime   @default(now())
+}
+
+model ReceiptChangeRequest {
+  id          String   @id @default(cuid())
+  paymentId   String
+  requestedBy String
+  oldAmount   Float
+  newAmount   Float
+  reason      String
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewedBy  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  password  String   @default("admin123")
+  role      String   @default("SUPERADMIN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PracticalSheetEntry {
+  id                 String      @id @default(cuid())
+  studentId          String
+  student            Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  praNo              Int         // 1 to 25
+  lessonTitle        String
+  studentSign        Boolean     @default(false)
+  studentSignDate    DateTime?
+  instructorSign     Boolean     @default(false)
+  instructorId       String?
+  instructor         Instructor? @relation(fields: [instructorId], references: [id], onDelete: SetNull)
+  instructorSignDate DateTime?
+  date               DateTime?
+  tov                String?     // Type / Time of Vehicle (e.g. "Toyota Belta KDA 123X - Manual")
+  officialSign       Boolean     @default(false)
+  officialSignDate   DateTime?
+  officialName       String?
+  status             String      @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
+  remarks            String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@unique([studentId, praNo])
+}
+
+model StudentModuleProgress {
+  id           String      @id @default(cuid())
+  studentId    String
+  student      Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseType   String      // "COMPUTER", "AI"
+  moduleNumber Int         // 1 to 10 for Computer, 1 to 9 for AI
+  moduleTitle  String
+  status       String      @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED
+  score        Int?        // 0 to 100
+  classwork    String?     // Classwork assignment / practical exercise
+  remarks      String?     // Tutor assessment / remarks
+  tutorId      String?
+  tutor        Instructor? @relation(fields: [tutorId], references: [id], onDelete: SetNull)
+  completedAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([studentId, courseType, moduleNumber])
+}
+

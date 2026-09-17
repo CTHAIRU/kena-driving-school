@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">KENA Driving School</string>
+    <string name="title_activity_main">KENA Driving School &amp; Computer College</string>
+    <string name="package_name">com.kenadrivingschool.app</string>
+    <string name="custom_url_scheme">kenadrivingschool</string>
+</resources>

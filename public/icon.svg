@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ea580c"/>
+      <stop offset="100%" stop-color="#c2410c"/>
+    </linearGradient>
+    <linearGradient id="road" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded App Icon Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  
+  <!-- Stylized Road Shield -->
+  <path d="M 120 100 L 392 100 Q 420 100 420 128 L 420 280 Q 420 380 256 440 Q 92 380 92 280 L 92 128 Q 92 100 120 100 Z" fill="url(#road)" opacity="0.95"/>
+  
+  <!-- Road Dividing Dashes -->
+  <line x1="256" y1="120" x2="256" y2="170" stroke="#f97316" stroke-width="12" stroke-linecap="round"/>
+  <line x1="256" y1="200" x2="256" y2="250" stroke="#f97316" stroke-width="12" stroke-linecap="round"/>
+  <line x1="256" y1="280" x2="256" y2="330" stroke="#f97316" stroke-width="12" stroke-linecap="round"/>
+  <line x1="256" y1="360" x2="256" y2="410" stroke="#f97316" stroke-width="12" stroke-linecap="round"/>
+  
+  <!-- Bold "K" Emblem -->
+  <text x="256" y="320" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="220" fill="#ffffff" text-anchor="middle" letter-spacing="-4">K</text>
+  
+  <!-- NTSA Star Badge -->
+  <circle cx="256" cy="140" r="16" fill="#f59e0b"/>
+</svg>
