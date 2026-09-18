@@ -107,10 +107,29 @@ export default function LoginPage() {
         : "/portal/admin";
 
     return (
-      <div className="min-h-[80vh] flex items-center justify-center py-6 px-4">
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl max-w-md w-full p-6 sm:p-8 space-y-6 text-center animate-in fade-in">
-          <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-700 mx-auto flex items-center justify-center shadow-inner">
-            <Lock className="w-7 h-7" />
+      <div className="relative min-h-[85vh] flex items-center justify-center py-8 px-4 overflow-hidden">
+        {/* Dynamic Background */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-32 -left-32 w-96 h-96 bg-orange-500/15 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl animate-pulse delay-700" />
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.06] select-none scale-110 sm:scale-125">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/kena-logo.jpg"
+              alt=""
+              className="max-w-xl sm:max-w-2xl w-full object-contain filter drop-shadow-xl"
+            />
+          </div>
+        </div>
+
+        <div className="relative z-10 bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/90 shadow-2xl shadow-slate-900/10 max-w-md w-full p-6 sm:p-8 space-y-6 text-center animate-in fade-in">
+          <div className="mx-auto w-36 h-18 relative flex items-center justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/kena-logo.jpg"
+              alt="KENA Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
 
           <div className="space-y-1.5">
@@ -185,17 +204,41 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center py-6 px-4">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl max-w-md w-full p-6 sm:p-8 space-y-6">
-        {/* Brand Header */}
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-500 mx-auto flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-orange-500/20">
-            K
+    <div className="relative min-h-[85vh] flex items-center justify-center py-8 px-4 overflow-hidden">
+      {/* Dynamic Animated Ambient Background with Logo Watermark */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Subtle luminous ambient orbs */}
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-orange-500/15 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl animate-pulse delay-700" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] bg-gradient-to-tr from-amber-200/25 via-orange-100/30 to-blue-200/20 rounded-full blur-3xl" />
+
+        {/* Dynamic Watermark Background using the uploaded logo */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-[0.07] select-none scale-110 sm:scale-125 transition-transform duration-700">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/kena-logo.jpg"
+            alt=""
+            className="max-w-2xl sm:max-w-3xl w-full object-contain filter drop-shadow-2xl animate-pulse"
+            style={{ animationDuration: "6s" }}
+          />
+        </div>
+      </div>
+
+      <div className="relative z-10 bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/90 shadow-2xl shadow-orange-950/10 max-w-md w-full p-6 sm:p-8 space-y-6">
+        {/* Brand Header with Uploaded Logo */}
+        <div className="text-center space-y-2.5">
+          <div className="mx-auto w-36 sm:w-44 h-20 relative flex items-center justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/kena-logo.jpg"
+              alt="KENA Driving School & Computer College"
+              className="w-full h-full object-contain filter drop-shadow-sm transition-transform hover:scale-105 duration-300"
+            />
           </div>
-          <h1 className="text-xl font-black text-slate-900 tracking-tight">
-            KENA School Portals Login
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            THE PORTAL OF KENA
           </h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 font-medium">
             Sign in to access your student, instructor, or administrator account.
           </p>
         </div>

@@ -6,6 +6,7 @@ import {
   Users,
   GraduationCap,
   CreditCard,
+  Car,
   FileCheck,
   Check,
   X,
@@ -231,10 +232,7 @@ export default function AdminDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Superadmin Operations Control</h1>
-            <span className="text-[10px] font-bold bg-orange-100 text-orange-800 px-2.5 py-0.5 rounded-full">
-              Tabby House Rm 72
-            </span>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Welcome, Lets catch up</h1>
           </div>
           <p className="text-xs text-slate-500 mt-1">
             School statistics, interactive clickable analytics charts, and receipt change approvals.
@@ -263,24 +261,36 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards - Clickable Navigation to Respective Modules */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+        {/* Active Students - Clickable */}
+        <Link
+          href="/students"
+          className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-orange-300 hover:shadow-md transition-all block group cursor-pointer"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Students</span>
-            <div className="p-2 rounded-xl bg-orange-50 text-orange-600">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider group-hover:text-orange-600 transition-colors">
+              Active Students
+            </span>
+            <div className="p-2 rounded-xl bg-orange-50 text-orange-600 group-hover:bg-orange-100 transition-colors">
               <Users className="w-5 h-5" />
             </div>
           </div>
           <p className="text-2xl font-black text-slate-900 mt-2">{stats?.totalStudents || 0}</p>
-          <p className="text-[11px] text-slate-500 mt-1">
-            <span className="text-emerald-600 font-bold">{stats?.testReadyCount || 0}</span> test-ready for NTSA
-          </p>
-        </div>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[11px] text-slate-500">
+              <span className="text-emerald-600 font-bold">{stats?.testReadyCount || 0}</span> test-ready for NTSA
+            </p>
+            <span className="text-[10px] font-bold text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+              View &rarr;
+            </span>
+          </div>
+        </Link>
 
+        {/* Faculty & Tutors - Clickable */}
         <Link
           href="/instructors"
-          className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-blue-300 transition-all block group"
+          className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-blue-300 hover:shadow-md transition-all block group cursor-pointer"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider group-hover:text-blue-600 transition-colors">
@@ -293,44 +303,76 @@ export default function AdminDashboardPage() {
           <p className="text-2xl font-black text-slate-900 mt-2">
             {facultyList.length || stats?.activeInstructors || 0}
           </p>
-          <p className="text-[11px] text-slate-500 mt-1">
-            <span className="text-orange-600 font-bold">
-              {facultyList.filter((i) => i.category === "DRIVING" || !i.category).length} Driving
-            </span>{" "}
-            •{" "}
-            <span className="text-blue-600 font-bold">
-              {facultyList.filter((i) => i.category === "COMPUTER").length} Comp
-            </span>{" "}
-            •{" "}
-            <span className="text-purple-600 font-bold">
-              {facultyList.filter((i) => i.category === "AI").length} AI
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[11px] text-slate-500 truncate">
+              <span className="text-orange-600 font-bold">
+                {facultyList.filter((i) => i.category === "DRIVING" || !i.category).length} Driving
+              </span>{" "}
+              •{" "}
+              <span className="text-blue-600 font-bold">
+                {facultyList.filter((i) => i.category === "COMPUTER").length} Comp
+              </span>{" "}
+              •{" "}
+              <span className="text-purple-600 font-bold">
+                {facultyList.filter((i) => i.category === "AI").length} AI
+              </span>
+            </p>
+            <span className="text-[10px] font-bold text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0 ml-1">
+              View &rarr;
             </span>
-          </p>
+          </div>
         </Link>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+        {/* Fleet & Vehicles (Replaced Collections) - Clickable */}
+        <Link
+          href="/vehicles"
+          className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-emerald-300 hover:shadow-md transition-all block group cursor-pointer"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Collections</span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-              <CreditCard className="w-5 h-5" />
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider group-hover:text-emerald-600 transition-colors">
+              Fleet &amp; Vehicles
+            </span>
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 transition-colors">
+              <Car className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-2xl font-black text-slate-900 mt-2">{formatCurrency(stats?.totalRevenue || 0)}</p>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Outstanding: <span className="font-bold text-orange-600">{formatCurrency(stats?.outstandingBalance || 0)}</span>
+          <p className="text-2xl font-black text-slate-900 mt-2">
+            {data?.vehicles?.length || 5}
           </p>
-        </div>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[11px] text-slate-500">
+              <span className="font-bold text-emerald-600">
+                {data?.vehicles?.filter((v: any) => v.status === "AVAILABLE").length || 3}
+              </span>{" "}
+              available for training
+            </p>
+            <span className="text-[10px] font-bold text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+              Manage &rarr;
+            </span>
+          </div>
+        </Link>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+        {/* Pending Approvals - Clickable */}
+        <Link
+          href="/billing"
+          className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-purple-300 hover:shadow-md transition-all block group cursor-pointer"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Approvals</span>
-            <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider group-hover:text-purple-600 transition-colors">
+              Pending Approvals
+            </span>
+            <div className="p-2 rounded-xl bg-purple-50 text-purple-600 group-hover:bg-purple-100 transition-colors">
               <FileCheck className="w-5 h-5" />
             </div>
           </div>
           <p className="text-2xl font-black text-purple-700 mt-2">{pendingApprovals.length}</p>
-          <p className="text-[11px] text-slate-500 mt-1">Receipt alteration requests</p>
-        </div>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[11px] text-slate-500">Receipt alteration requests</p>
+            <span className="text-[10px] font-bold text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+              Review &rarr;
+            </span>
+          </div>
+        </Link>
       </div>
 
       {/* 3 CLICKABLE CHARTS SECTION (Course Distribution, Subscription Status, Student Distribution / Year) */}

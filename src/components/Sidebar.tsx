@@ -31,6 +31,11 @@ export function Sidebar() {
   const pathname = usePathname();
   const { role, authUser, isAuthenticated, logout } = useRole();
 
+  // Do not show sidebar on login or register pages
+  if (pathname === "/login" || pathname === "/register") {
+    return null;
+  }
+
   // Dynamic Navigation Menus tailored to each quotation role
   const getNavItems = () => {
     if (role === "STUDENT") {
@@ -56,12 +61,11 @@ export function Sidebar() {
       ];
     }
 
-    // Default: ADMIN / SUPERADMIN
+    // Default: ADMIN / SUPERADMIN (Note: 25 Practicals tab removed as it is inside Manage Content)
     return [
       { name: "Admin Dashboard", href: "/portal/admin", icon: LayoutDashboard },
       { name: "All Students", href: "/students", icon: Users },
       { name: "Add Student", href: "/portal/admin/add-student", icon: UserPlus },
-      { name: "25 Practical Topics", href: "/practical-topics", icon: FileCheck2 },
       { name: "Add Instructor", href: "/instructors", icon: GraduationCap },
       { name: "Manage Content", href: "/portal/admin/content", icon: FileUp },
       { name: "Payments & Approvals", href: "/billing", icon: CreditCard },
@@ -86,17 +90,22 @@ export function Sidebar() {
 
   return (
     <aside className="hidden md:flex w-64 bg-slate-950 text-white flex-col shrink-0 min-h-screen border-r border-slate-800">
-      {/* Brand Header */}
-      <div className="h-20 flex items-center px-6 gap-3 border-b border-slate-800/80 bg-slate-900/60">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 font-black text-lg">
-          K
+      {/* Brand Header with uploaded KENA Logo */}
+      <div className="h-20 flex items-center px-4 gap-3 border-b border-slate-800/80 bg-slate-900/60">
+        <div className="w-12 h-12 rounded-xl bg-white p-1 flex items-center justify-center shadow-md shadow-orange-500/10 shrink-0 overflow-hidden border border-slate-700/60">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/kena-logo.jpg"
+            alt="KENA Logo"
+            className="w-full h-full object-contain"
+          />
         </div>
-        <div>
-          <h1 className="font-extrabold text-sm tracking-wide text-white leading-tight">
-            KENA <span className="text-orange-500">DRIVING</span>
+        <div className="min-w-0">
+          <h1 className="font-extrabold text-xs tracking-wide text-white leading-tight truncate">
+            <span className="text-orange-500">KENA</span> Driving School
           </h1>
-          <p className="text-[11px] text-slate-400 font-medium leading-tight">
-            &amp; Computer College
+          <p className="text-[11px] text-slate-300 font-medium leading-tight truncate">
+            &amp; Computer college
           </p>
           <p className="text-[9px] text-orange-400/90 font-semibold tracking-wider uppercase mt-0.5">
             Thika Campus

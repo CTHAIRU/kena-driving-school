@@ -23,6 +23,10 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const { role } = useRole();
 
+  if (pathname === "/login" || pathname === "/register") {
+    return null;
+  }
+
   const getTabs = () => {
     if (role === "STUDENT") {
       return [
@@ -48,7 +52,6 @@ export function MobileBottomNav() {
     return [
       { label: "Dashboard", href: "/portal/admin", icon: LayoutDashboard },
       { label: "Students", href: "/students", icon: Users },
-      { label: "Practicals", href: "/practical-topics", icon: FileCheck2 },
       { label: "Reports", href: "/portal/admin/reports", icon: BarChart3 },
       { label: "Billing", href: "/billing", icon: CreditCard },
     ];

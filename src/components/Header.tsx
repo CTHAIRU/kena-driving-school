@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useRole } from "@/context/RoleContext";
 import {
   Search,
@@ -20,9 +21,12 @@ import {
 } from "lucide-react";
 
 export function Header() {
+  const pathname = usePathname();
   const { role, authUser, isAuthenticated, logout } = useRole();
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
   const [currentHost, setCurrentHost] = useState("192.168.100.15");
+
+  const isAuthPage = pathname === "/login" || pathname === "/register";
 
   useEffect(() => {
     if (
@@ -62,23 +66,40 @@ export function Header() {
 
   return (
     <header className="h-16 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20 shadow-xs">
-      {/* Search Bar / Context */}
-      <div className="flex items-center gap-4 flex-1 max-w-md">
-        <div className="relative w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder={
-              role === "STUDENT"
-                ? "Search your courses, materials, or receipts..."
-                : role === "INSTRUCTOR"
-                ? "Search assigned students or practical topics..."
-                : "Search students, NTSA PDL, ID, or instructors..."
-            }
-            className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
-          />
+      {/* Search Bar / Context - Hidden on Login/Auth pages */}
+      {isAuthPage ? (
+        <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-9 h-9 rounded-xl bg-white p-0.5 border border-slate-200 shadow-xs flex items-center justify-center overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/kena-logo.jpg" alt="KENA Logo" className="w-full h-full object-contain" />
+            </div>
+            <div className="hidden sm:block">
+              <span className="text-xs font-black text-slate-900 tracking-tight block leading-tight">
+                <span className="text-orange-600">KENA</span> Portal
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium">Driving School &amp; Computer College</span>
+            </div>
+          </Link>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center gap-4 flex-1 max-w-md">
+          <div className="relative w-full">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder={
+                role === "STUDENT"
+                  ? "Search your courses, materials, or receipts..."
+                  : role === "INSTRUCTOR"
+                  ? "Search assigned students or practical topics..."
+                  : "Search students, NTSA PDL, ID, or instructors..."
+              }
+              className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Right Side Tools & Contacts */}
       <div className="flex items-center gap-2.5 sm:gap-3">
