@@ -31,6 +31,7 @@ import {
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import {
   detectCourseType,
+  detectStudentCourses,
   CourseType,
   CertificateStatus,
   generateCertificateNumber,
@@ -53,6 +54,7 @@ export default function StudentDetailPage() {
   const [certSaveSuccess, setCertSaveSuccess] = useState(false);
 
   // Module Progress State (Computer & AI)
+  const [activeCollegeTab, setActiveCollegeTab] = useState<"COMPUTER" | "AI">("COMPUTER");
   const [modules, setModules] = useState<any[]>([]);
   const [moduleSummary, setModuleSummary] = useState<any>(null);
   const [editingModule, setEditingModule] = useState<any | null>(null);
@@ -86,10 +88,12 @@ export default function StudentDetailPage() {
         );
         setCertRemarks(data.certificateRemarks || "");
 
-        const cType = detectCourseType(data.package?.name, data.licenseCategory);
-        if (cType === "COMPUTER" || cType === "AI") {
+        const detected = detectStudentCourses(data.package?.name, data.licenseCategory);
+        if (detected.hasComputer || detected.hasAI) {
+          const tabToUse = detected.hasComputer ? "COMPUTER" : "AI";
+          setActiveCollegeTab(tabToUse);
           try {
-            const modRes = await fetch(`/api/students/module-progress?studentId=${studentId}`);
+            const modRes = await fetch(`/api/students/module-progress?studentId=${studentId}&courseType=${tabToUse}`);
             const modData = await modRes.json();
             if (modData && modData.modules) {
               setModules(modData.modules);
@@ -237,13 +241,12 @@ export default function StudentDetailPage() {
     if (!editingModule) return;
     setSavingModule(true);
     try {
-      const cType = detectCourseType(student?.package?.name, student?.licenseCategory);
       const res = await fetch("/api/students/module-progress", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studentId,
-          courseType: editingModule.courseType || cType,
+          courseType: editingModule.courseType || activeCollegeTab,
           moduleNumber: editingModule.moduleNumber,
           status: modStatus,
           score: modScore !== "" ? Number(modScore) : null,
@@ -259,6 +262,20 @@ export default function StudentDetailPage() {
       console.error(e);
     } finally {
       setSavingModule(false);
+    }
+  };
+
+  const handleSwitchCollegeTab = async (newTab: "COMPUTER" | "AI") => {
+    setActiveCollegeTab(newTab);
+    try {
+      const modRes = await fetch(`/api/students/module-progress?studentId=${studentId}&courseType=${newTab}`);
+      const modData = await modRes.json();
+      if (modData && modData.modules) {
+        setModules(modData.modules);
+        setModuleSummary(modData.summary);
+      }
+    } catch (mErr) {
+      console.error("Failed to switch module tab:", mErr);
     }
   };
 
@@ -286,10 +303,11 @@ export default function StudentDetailPage() {
     Math.round((student.completedHours / (student.requiredHours || 1)) * 100)
   );
 
-  const courseType = detectCourseType(student.package?.name, student.licenseCategory);
-  const isComputer = courseType === "COMPUTER";
-  const isAI = courseType === "AI";
-  const isDriving = courseType === "DRIVING";
+  const detected = detectStudentCourses(student.package?.name, student.licenseCategory);
+  const isComputer = detected.hasComputer;
+  const isAI = detected.hasAI;
+  const isDriving = detected.hasDriving;
+  const isDualCollege = isComputer && isAI;
 
   const getSkillColor = (status: string) => {
     switch (status) {
@@ -343,22 +361,29 @@ export default function StudentDetailPage() {
             </p>
 
             <div className="flex flex-wrap items-center gap-2 mt-3">
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-md border ${
-                isComputer
-                  ? "bg-blue-50 text-blue-700 border-blue-200"
-                  : isAI
-                  ? "bg-purple-50 text-purple-700 border-purple-200"
-                  : "bg-orange-50 text-orange-700 border-orange-200"
-              }`}>
-                {isComputer
-                  ? "💻 Computer Packages Certification (10 Modules)"
-                  : isAI
-                  ? "🤖 Artificial Intelligence Masterclasses (9 Topics)"
-                  : `🚗 ${student.licenseCategory}`}
-              </span>
+              {isDriving && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-md border bg-orange-50 text-orange-700 border-orange-200 flex items-center gap-1.5">
+                  <Car className="w-3.5 h-3.5" />
+                  <span>{student.licenseCategory.includes("+") ? student.licenseCategory.split("+")[0].trim() : student.licenseCategory}</span>
+                </span>
+              )}
 
-              {isDriving && student.transmission !== "NONE" && (
-                <span className="text-xs font-bold bg-purple-50 text-purple-700 px-2.5 py-1 rounded-md border border-purple-200">
+              {isComputer && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-md border bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1.5">
+                  <span>💻</span>
+                  <span>Computer Packages (10 Modules)</span>
+                </span>
+              )}
+
+              {isAI && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-md border bg-purple-50 text-purple-700 border-purple-200 flex items-center gap-1.5">
+                  <span>🤖</span>
+                  <span>AI Masterclasses (9 Topics)</span>
+                </span>
+              )}
+
+              {isDriving && student.transmission && student.transmission !== "NONE" && (
+                <span className="text-xs font-bold bg-slate-50 text-slate-700 px-2.5 py-1 rounded-md border border-slate-200">
                   {student.transmission}
                 </span>
               )}
@@ -711,16 +736,43 @@ export default function StudentDetailPage() {
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-blue-600" />
-                  {isComputer
+                  {activeCollegeTab === "COMPUTER"
                     ? "Computer Packages Certification (10 Modules)"
                     : "Artificial Intelligence Masterclasses (9 Topics)"}
                 </h3>
                 <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
                   {modules.filter((m) => m.status === "COMPLETED").length} /{" "}
-                  {isComputer ? 10 : 9} Completed
+                  {activeCollegeTab === "COMPUTER" ? 10 : 9} Completed
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
+              {isDualCollege && (
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs font-semibold text-slate-500 mr-1">Switch Track:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchCollegeTab("COMPUTER")}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      activeCollegeTab === "COMPUTER"
+                        ? "bg-blue-600 text-white shadow-xs"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    💻 Computer Packages (10)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchCollegeTab("AI")}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      activeCollegeTab === "AI"
+                        ? "bg-purple-600 text-white shadow-xs"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    🤖 AI Masterclasses (9)
+                  </button>
+                </div>
+              )}
+              <p className="text-xs text-slate-500 mt-1">
                 Click &quot;Edit Module&quot; to update assessment scores, classwork, and tutor remarks.
               </p>
             </div>

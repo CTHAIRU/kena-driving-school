@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { STANDARD_DRIVING_SKILLS } from "@/lib/utils";
+import {
+  COMPUTER_MODULES,
+  AI_MODULES,
+  detectStudentCourses,
+} from "@/lib/courseProgressShared";
 
 export async function GET(request: Request) {
   try {
@@ -66,7 +71,11 @@ export async function POST(request: Request) {
       licenseCategory,
       transmission = "MANUAL",
       packageId,
+      drivingPackageId,
+      collegePackageId,
+      collegeTrack,
       instructorId,
+      collegeTutorId,
       pdlNumber,
       eCitizenRef,
       nextOfKinName,
@@ -83,19 +92,39 @@ export async function POST(request: Request) {
       );
     }
 
-    // Lookup package for hours and default price
-    let requiredHours = 20.0;
-    let balance = 0.0;
+    // Determine course tracks from explicit inputs or licenseCategory
+    const detected = detectStudentCourses(packageId, licenseCategory);
+    const hasDriving = Boolean(drivingPackageId) || (detected.hasDriving && !collegeTrack);
+    const hasComputer = collegeTrack === "COMPUTER" || collegeTrack === "BOTH" || detected.hasComputer;
+    const hasAI = collegeTrack === "AI" || collegeTrack === "BOTH" || detected.hasAI;
 
-    if (packageId) {
+    // Lookup packages for hours and default price calculation
+    let calculatedHours = 0;
+    let cataloguePrice = 0;
+
+    const primaryPkgId = drivingPackageId || packageId || collegePackageId;
+    if (primaryPkgId) {
       const selectedPkg = await db.package.findUnique({
-        where: { id: packageId },
+        where: { id: primaryPkgId },
       });
       if (selectedPkg) {
-        requiredHours = selectedPkg.totalHours;
-        balance = selectedPkg.price;
+        calculatedHours += selectedPkg.totalHours;
+        cataloguePrice += selectedPkg.price;
       }
     }
+
+    // If dual enrolled in college, add college hours if not already included
+    if (hasComputer && primaryPkgId !== collegePackageId) {
+      calculatedHours += 40;
+    }
+    if (hasAI && primaryPkgId !== collegePackageId) {
+      calculatedHours += 20;
+    }
+    if (calculatedHours === 0) {
+      calculatedHours = hasDriving ? 20.0 : hasComputer ? 40.0 : 20.0;
+    }
+
+    let balance = cataloguePrice;
 
     // Independent manual fee override takes precedence per institutional offers
     if (customTuitionFee !== undefined && customTuitionFee !== null && customTuitionFee !== "") {
@@ -117,14 +146,15 @@ export async function POST(request: Request) {
         admissionNumber: genAdm,
         dateOfBirth: dateOfBirth || null,
         customTuitionFee: balance,
-        pdlNumber: pdlNumber || null,
-        eCitizenRef: eCitizenRef || null,
+        // NTSA PDL and eCitizen are only saved if driving is enrolled
+        pdlNumber: hasDriving ? pdlNumber || null : null,
+        eCitizenRef: hasDriving ? eCitizenRef || null : null,
         licenseCategory,
-        transmission,
+        transmission: hasDriving ? transmission : "NONE",
         status: "ENROLLED",
-        packageId: packageId || null,
-        instructorId: instructorId || null,
-        requiredHours,
+        packageId: primaryPkgId || null,
+        instructorId: instructorId || collegeTutorId || null,
+        requiredHours: calculatedHours,
         completedHours: 0.0,
         balance,
         nextOfKinName: nextOfKinName || null,
@@ -135,16 +165,50 @@ export async function POST(request: Request) {
       },
     });
 
-    // Populate standard competencies
-    const skillData = STANDARD_DRIVING_SKILLS.map((skillName) => ({
-      studentId: newStudent.id,
-      skillName,
-      status: "NOT_STARTED",
-    }));
+    // Populate driving competencies ONLY if enrolled in driving
+    if (hasDriving) {
+      const skillData = STANDARD_DRIVING_SKILLS.map((skillName) => ({
+        studentId: newStudent.id,
+        skillName,
+        status: "NOT_STARTED",
+      }));
 
-    await db.studentSkill.createMany({
-      data: skillData,
-    });
+      await db.studentSkill.createMany({
+        data: skillData,
+      });
+    }
+
+    // Populate Computer Modules if enrolled in Computer
+    if (hasComputer) {
+      const assignedTutor = collegeTutorId || (!hasDriving ? instructorId : null);
+      await db.studentModuleProgress.createMany({
+        data: COMPUTER_MODULES.map((m) => ({
+          studentId: newStudent.id,
+          courseType: "COMPUTER",
+          moduleNumber: m.moduleNumber,
+          moduleTitle: m.title,
+          classwork: m.defaultClasswork,
+          status: "NOT_STARTED",
+          tutorId: assignedTutor || undefined,
+        })),
+      });
+    }
+
+    // Populate AI Masterclass Modules if enrolled in AI
+    if (hasAI) {
+      const assignedTutor = collegeTutorId || (!hasDriving ? instructorId : null);
+      await db.studentModuleProgress.createMany({
+        data: AI_MODULES.map((m) => ({
+          studentId: newStudent.id,
+          courseType: "AI",
+          moduleNumber: m.moduleNumber,
+          moduleTitle: m.title,
+          classwork: m.defaultClasswork,
+          status: "NOT_STARTED",
+          tutorId: assignedTutor || undefined,
+        })),
+      });
+    }
 
     return NextResponse.json(newStudent, { status: 201 });
   } catch (error: any) {
@@ -158,3 +222,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to enroll student" }, { status: 500 });
   }
 }
+

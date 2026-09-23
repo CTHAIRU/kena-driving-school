@@ -18,6 +18,7 @@ import {
   Printer,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { detectStudentCourses } from "@/lib/courseProgressShared";
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<any[]>([]);
@@ -344,12 +345,10 @@ export default function StudentsPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {students.map((student) => {
-                  const isComp =
-                    student.licenseCategory?.toLowerCase().includes("computer") ||
-                    student.package?.name?.toLowerCase().includes("computer");
-                  const isAi =
-                    student.licenseCategory?.toLowerCase().includes("ai") ||
-                    student.package?.name?.toLowerCase().includes("ai");
+                  const detected = detectStudentCourses(student.package?.name, student.licenseCategory);
+                  const isComp = detected.hasComputer;
+                  const isAi = detected.hasAI;
+                  const isDriving = detected.hasDriving;
                   const isTech = isComp || isAi;
 
                   const totalMods = isComp ? 10 : isAi ? 9 : 0;
@@ -403,26 +402,28 @@ export default function StudentsPage() {
 
                       <td className="px-5 py-3.5">
                         <span className="font-medium text-slate-800">
-                          {isComp
-                            ? "Computer Packages"
-                            : isAi
-                            ? "AI Masterclasses"
-                            : student.licenseCategory}
+                          {student.licenseCategory || (isComp ? "Computer Packages" : isAi ? "AI Masterclasses" : "Driving Course")}
                         </span>
-                        <div className="mt-0.5">
-                          {isTech ? (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">
-                              {isComp ? "10 Modules" : "9 Topics"}
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          {isComp && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
+                              💻 10 Modules
                             </span>
-                          ) : (
+                          )}
+                          {isAi && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-100">
+                              🤖 9 Topics
+                            </span>
+                          )}
+                          {isDriving && student.transmission && student.transmission !== "NONE" && (
                             <span
                               className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
                                 student.transmission === "MANUAL"
-                                  ? "bg-purple-50 text-purple-700"
-                                  : "bg-cyan-50 text-cyan-700"
+                                  ? "bg-orange-50 text-orange-700 border border-orange-100"
+                                  : "bg-cyan-50 text-cyan-700 border border-cyan-100"
                               }`}
                             >
-                              {student.transmission}
+                              🚗 {student.transmission}
                             </span>
                           )}
                         </div>

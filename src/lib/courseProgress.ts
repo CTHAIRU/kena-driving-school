@@ -3,6 +3,7 @@ import {
   COMPUTER_MODULES,
   AI_MODULES,
   detectCourseType,
+  detectStudentCourses,
   generateCertificateNumber,
   CourseType,
   CertificateStatus,
@@ -12,6 +13,7 @@ export {
   COMPUTER_MODULES,
   AI_MODULES,
   detectCourseType,
+  detectStudentCourses,
   generateCertificateNumber,
 };
 export type { CourseType, CertificateStatus };

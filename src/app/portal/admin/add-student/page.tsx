@@ -32,6 +32,11 @@ export default function AdminAddStudentPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  // Separated Course Selections
+  const [drivingPackageId, setDrivingPackageId] = useState("");
+  const [collegeTrack, setCollegeTrack] = useState<"" | "COMPUTER" | "AI" | "BOTH">("");
+  const [collegeTutorId, setCollegeTutorId] = useState("");
+
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -43,9 +48,8 @@ export default function AdminAddStudentPage() {
     pdlNumber: "",
     eCitizenRef: "",
     branch: "Tabby House, Thika",
-    licenseCategory: "Category B - Light Vehicle",
+    licenseCategory: "B2 - Light Manual Vehicle",
     transmission: "MANUAL",
-    packageId: "",
     customTuitionFee: "14500",
     instructorId: "",
     nextOfKinName: "",
@@ -54,41 +58,6 @@ export default function AdminAddStudentPage() {
     referralSource: "Google",
     notes: "",
   });
-
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/billing").then((r) => r.json()),
-      fetch("/api/instructors").then((r) => r.json()),
-    ]).then(([billingData, instData]) => {
-      const pkgs = billingData.packages || [];
-      setPackages(pkgs);
-      setInstructors(Array.isArray(instData) ? instData : []);
-      if (pkgs.length > 0) {
-        const firstDriving = pkgs.find((p: any) => p.name === DRIVING_CLASSES_ORDER[0]);
-        const initial = firstDriving || pkgs[0];
-        setForm((prev) => ({
-          ...prev,
-          packageId: initial.id,
-          customTuitionFee: String(initial.price),
-          licenseCategory: initial.category,
-        }));
-      }
-    });
-  }, []);
-
-  const handlePackageChange = (pkgId: string) => {
-    const selected = packages.find((p) => p.id === pkgId);
-    if (selected) {
-      setForm((prev) => ({
-        ...prev,
-        packageId: pkgId,
-        customTuitionFee: String(selected.price),
-        licenseCategory: selected.category,
-      }));
-    } else {
-      setForm((prev) => ({ ...prev, packageId: pkgId }));
-    }
-  };
 
   // Group and sort packages as requested
   const drivingPackages = packages
@@ -108,42 +77,148 @@ export default function AdminAddStudentPage() {
       return a.name.localeCompare(b.name);
     });
 
-  const computerPackages = packages.filter((pkg) =>
+  const computerPkg = packages.find((pkg) =>
     pkg.name.toLowerCase().includes("computer")
   );
 
-  const aiPackages = packages.filter(
+  const aiPkg = packages.find(
     (pkg) =>
       pkg.name.toLowerCase().includes("artificial intelligence") ||
       pkg.name.toLowerCase().includes("creative media") ||
       pkg.name.toLowerCase().includes("modern ai")
   );
 
-  const selectedPkg = packages.find((p) => p.id === form.packageId);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/billing").then((r) => r.json()),
+      fetch("/api/instructors").then((r) => r.json()),
+    ]).then(([billingData, instData]) => {
+      const pkgs = billingData.packages || [];
+      setPackages(pkgs);
+      setInstructors(Array.isArray(instData) ? instData : []);
+      if (pkgs.length > 0) {
+        const sortedDriving = pkgs
+          .filter(
+            (pkg: any) =>
+              !pkg.name.toLowerCase().includes("computer") &&
+              !pkg.name.toLowerCase().includes("artificial intelligence") &&
+              !pkg.name.toLowerCase().includes("creative media") &&
+              !pkg.name.toLowerCase().includes("modern ai")
+          )
+          .sort((a: any, b: any) => {
+            const idxA = DRIVING_CLASSES_ORDER.findIndex((title) => a.name.startsWith(title) || a.name === title);
+            const idxB = DRIVING_CLASSES_ORDER.findIndex((title) => b.name.startsWith(title) || b.name === title);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            return a.name.localeCompare(b.name);
+          });
 
-  // Check if course is computer or AI only
-  const isComputerOrAI =
-    form.licenseCategory.toLowerCase().includes("computer") ||
-    form.licenseCategory.toLowerCase().includes("ai") ||
-    form.licenseCategory.toLowerCase().includes("artificial intelligence") ||
-    (selectedPkg &&
-      (selectedPkg.name.toLowerCase().includes("computer") ||
-        selectedPkg.name.toLowerCase().includes("ai") ||
-        selectedPkg.name.toLowerCase().includes("artificial intelligence")));
+        const initial =
+          sortedDriving.find((p: any) => p.name.startsWith("B2") || p.name.includes("B2")) ||
+          sortedDriving[0];
+
+        if (initial) {
+          setDrivingPackageId(initial.id);
+          setForm((prev) => ({
+            ...prev,
+            customTuitionFee: String(initial.price),
+            licenseCategory: initial.name,
+          }));
+        }
+      }
+    });
+  }, []);
+
+  const recalculateFee = (newDrivingId: string, newCollegeTrack: "" | "COMPUTER" | "AI" | "BOTH") => {
+    const selectedDriving = drivingPackages.find((p) => p.id === newDrivingId);
+    const drivingFee = selectedDriving ? selectedDriving.price : 0;
+    const compFee = newCollegeTrack === "COMPUTER" || newCollegeTrack === "BOTH" ? (computerPkg?.price || 6000) : 0;
+    const aiFee = newCollegeTrack === "AI" || newCollegeTrack === "BOTH" ? (aiPkg?.price || 10000) : 0;
+    const total = drivingFee + compFee + aiFee;
+
+    setForm((prev) => ({
+      ...prev,
+      customTuitionFee: String(total),
+    }));
+  };
+
+  const handleDrivingChange = (newDrivingId: string) => {
+    setDrivingPackageId(newDrivingId);
+    recalculateFee(newDrivingId, collegeTrack);
+  };
+
+  const handleCollegeChange = (newCollegeTrack: "" | "COMPUTER" | "AI" | "BOTH") => {
+    setCollegeTrack(newCollegeTrack);
+    recalculateFee(drivingPackageId, newCollegeTrack);
+  };
+
+  const selectedDrivingPkg = drivingPackages.find((p) => p.id === drivingPackageId);
+  const hasDriving = Boolean(drivingPackageId);
+  const hasComputer = collegeTrack === "COMPUTER" || collegeTrack === "BOTH";
+  const hasAI = collegeTrack === "AI" || collegeTrack === "BOTH";
+  const hasCollege = hasComputer || hasAI;
+  const isComputerOrAIOnly = !hasDriving && hasCollege;
+
+  const drivingFee = selectedDrivingPkg ? selectedDrivingPkg.price : 0;
+  const compFee = hasComputer ? (computerPkg?.price || 6000) : 0;
+  const aiFee = hasAI ? (aiPkg?.price || 10000) : 0;
+  const catalogueSum = drivingFee + compFee + aiFee;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!hasDriving && !hasCollege) {
+      setError("Please select at least one course: a Driving Course Package, or a Computer / AI College Track.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
+      // Build composite category name
+      let fullCategory = "";
+      if (hasDriving && hasCollege) {
+        const collegeName =
+          collegeTrack === "BOTH"
+            ? "Computer Packages & AI Masterclasses"
+            : collegeTrack === "COMPUTER"
+            ? "Computer Packages Certification"
+            : "Artificial Intelligence Masterclasses";
+        fullCategory = `${selectedDrivingPkg?.name || "Driving"} + ${collegeName}`;
+      } else if (hasDriving) {
+        fullCategory = selectedDrivingPkg?.name || "Driving";
+      } else {
+        fullCategory =
+          collegeTrack === "BOTH"
+            ? "Computer Packages Certification + AI Masterclasses"
+            : collegeTrack === "COMPUTER"
+            ? "Computer Packages Certification (10 Modules)"
+            : "Artificial Intelligence masterclasses";
+      }
+
+      const collegePackageId =
+        collegeTrack === "COMPUTER" || collegeTrack === "BOTH"
+          ? computerPkg?.id
+          : collegeTrack === "AI"
+          ? aiPkg?.id
+          : null;
+
       const res = await fetch("/api/students", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
-          // If computer or AI only, transmission is NONE
-          transmission: isComputerOrAI ? "NONE" : form.transmission,
+          drivingPackageId: drivingPackageId || null,
+          collegePackageId,
+          collegeTrack,
+          collegeTutorId: collegeTutorId || null,
+          licenseCategory: fullCategory,
+          packageId: drivingPackageId || collegePackageId || null,
+          transmission: hasDriving ? form.transmission : "NONE",
+          pdlNumber: hasDriving ? form.pdlNumber : null,
+          eCitizenRef: hasDriving ? form.eCitizenRef : null,
         }),
       });
 
@@ -310,12 +385,12 @@ export default function AdminAddStudentPage() {
           </div>
         </div>
 
-        {/* SECTION 2: SEPARATED COURSE PACKAGE & MANUAL FEE */}
+        {/* SECTION 2: SEPARATED COURSE PACKAGES & INDEPENDENT TUITION FEE */}
         <div className="space-y-4 pt-2">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-orange-600" />
-              2. Course Package &amp; Independent Tuition Fee
+              2. Select Course Packages &amp; Independent Tuition Fee
             </h3>
             <span className="text-[11px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
               Manual Offer / Custom Price Entry
@@ -323,82 +398,156 @@ export default function AdminAddStudentPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            {/* DROPDOWN 1: DRIVING COURSE PACKAGE */}
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Select Course Package *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <Car className="w-3.5 h-3.5 text-orange-600" />
+                  <span>Driving Course Package</span>
+                </label>
+                <span className="text-[10px] font-medium text-slate-400">14 NTSA Classes</span>
+              </div>
               <select
-                value={form.packageId}
-                onChange={(e) => handlePackageChange(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-orange-500"
+                value={drivingPackageId}
+                onChange={(e) => handleDrivingChange(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-orange-500"
               >
-                {/* 1. Driving Classes in exact required order */}
-                {drivingPackages.length > 0 && (
-                  <optgroup label="🚗 Driving Classes">
-                    {drivingPackages.map((pkg) => (
-                      <option key={pkg.id} value={pkg.id}>
-                        {pkg.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-
-                {/* 2. Computer Packages */}
-                {computerPackages.length > 0 && (
-                  <optgroup label="💻 Computer College">
-                    {computerPackages.map((pkg) => (
-                      <option key={pkg.id} value={pkg.id}>
-                        {pkg.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-
-                {/* 3. Artificial Intelligence Masterclasses */}
-                {aiPackages.length > 0 && (
-                  <optgroup label="🤖 Artificial Intelligence">
-                    {aiPackages.map((pkg) => (
-                      <option key={pkg.id} value={pkg.id}>
-                        {pkg.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
+                <option value="">-- None / Not Enrolled in Driving Lessons --</option>
+                <optgroup label="🚗 Official NTSA Driving Classes (A1 to D4)">
+                  {drivingPackages.map((pkg) => (
+                    <option key={pkg.id} value={pkg.id}>
+                      {pkg.name} — {formatCurrency(pkg.price)}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
-              {selectedPkg && (
+              {selectedDrivingPkg ? (
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Catalogue standard: {formatCurrency(selectedPkg.price)} ({selectedPkg.category})
+                  Driving: <span className="font-semibold text-slate-700">{selectedDrivingPkg.name}</span> ({formatCurrency(selectedDrivingPkg.price)})
+                </p>
+              ) : (
+                <p className="text-[11px] text-slate-400 mt-1">
+                  No driving lessons selected for this candidate.
                 </p>
               )}
             </div>
 
-            {/* Independent Fee Field: Manually Fed */}
+            {/* DROPDOWN 2: COMPUTER PACKAGES & AI MASTERCLASSES */}
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Tuition Fee (KSh) * <span className="text-orange-600 font-bold">[Feed Manually]</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-xs">
-                  KSh
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Computer Packages &amp; AI Masterclasses</span>
+                </label>
+                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                  College Track
                 </span>
-                <input
-                  type="number"
-                  step="100"
-                  required
-                  placeholder="e.g. 14500 (or custom offer price)"
-                  value={form.customTuitionFee}
-                  onChange={(e) => setForm({ ...form, customTuitionFee: e.target.value })}
-                  className="w-full pl-12 pr-3.5 py-2.5 bg-amber-50/50 border border-amber-200 rounded-xl text-slate-900 font-black text-sm focus:outline-none focus:border-orange-500"
-                />
               </div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Adjust figures manually per institutional promotions, student discounts, or special group offers.
-              </p>
+              <select
+                value={collegeTrack}
+                onChange={(e) => handleCollegeChange(e.target.value as any)}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-orange-500"
+              >
+                <option value="">-- None (No Computer or AI Enrolment) --</option>
+                <option value="COMPUTER">
+                  💻 Computer Packages Certification (10 Modules) — KSh 6,000
+                </option>
+                <option value="AI">
+                  🤖 Artificial Intelligence Masterclasses — KSh 10,000
+                </option>
+                <option value="BOTH">
+                  🚀 Both: Computer Packages &amp; AI Masterclasses (Dual Certification) — KSh 16,000
+                </option>
+              </select>
+              {hasCollege ? (
+                <p className="text-[11px] text-blue-700 font-medium mt-1">
+                  {collegeTrack === "BOTH"
+                    ? "Enrolled in both 10 Computer Modules + 9 AI Masterclass Topics"
+                    : collegeTrack === "COMPUTER"
+                    ? "Enrolled in 10 Computer Modules Certification (KSh 6,000)"
+                    : "Enrolled in 9 AI Masterclass Topics Certification (KSh 10,000)"}
+                </p>
+              ) : (
+                <p className="text-[11px] text-slate-400 mt-1">
+                  No computer or AI college courses selected.
+                </p>
+              )}
             </div>
           </div>
 
-          {/* GEAR TRANSMISSION: HIDDEN IF COMPUTER OR AI ONLY */}
-          {!isComputerOrAI ? (
+          {/* INDEPENDENT TUITION FEE FIELD */}
+          <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs items-center">
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">
+                  Tuition Fee (KSh) * <span className="text-orange-600 font-extrabold">[Feed Manually]</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-xs">
+                    KSh
+                  </span>
+                  <input
+                    type="number"
+                    step="100"
+                    required
+                    placeholder="e.g. 14500 (or custom offer price)"
+                    value={form.customTuitionFee}
+                    onChange={(e) => setForm({ ...form, customTuitionFee: e.target.value })}
+                    className="w-full pl-12 pr-3.5 py-2.5 bg-white border border-amber-300 rounded-xl text-slate-900 font-black text-sm focus:outline-none focus:border-orange-500 shadow-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="text-xs">
+                <span className="text-slate-500 font-medium block mb-1">Catalogue Standard Reference:</span>
+                {hasDriving && hasCollege ? (
+                  <div className="bg-white/80 p-2.5 rounded-xl border border-amber-200/60 text-[11px] text-slate-700">
+                    <span className="font-bold text-slate-900 block text-xs">
+                      Standard Sum: {formatCurrency(catalogueSum)}
+                    </span>
+                    <span>
+                      Driving ({formatCurrency(selectedDrivingPkg?.price || 0)}) +{" "}
+                      {collegeTrack === "BOTH"
+                        ? "Computer (KSh 6,000) & AI (KSh 10,000)"
+                        : collegeTrack === "COMPUTER"
+                        ? "Computer Packages (KSh 6,000)"
+                        : "AI Masterclasses (KSh 10,000)"}
+                    </span>
+                  </div>
+                ) : hasDriving ? (
+                  <div className="bg-white/80 p-2.5 rounded-xl border border-amber-200/60 text-[11px] text-slate-700">
+                    <span className="font-bold text-slate-900 block text-xs">
+                      Standard Fee: {formatCurrency(selectedDrivingPkg?.price || 0)}
+                    </span>
+                    <span>{selectedDrivingPkg?.name}</span>
+                  </div>
+                ) : hasCollege ? (
+                  <div className="bg-white/80 p-2.5 rounded-xl border border-amber-200/60 text-[11px] text-slate-700">
+                    <span className="font-bold text-slate-900 block text-xs">
+                      Standard Fee: {formatCurrency(catalogueSum)}
+                    </span>
+                    <span>
+                      {collegeTrack === "BOTH"
+                        ? "Computer Packages (KSh 6,000) + AI Masterclasses (KSh 10,000)"
+                        : collegeTrack === "COMPUTER"
+                        ? "Computer Packages Certification (10 Modules)"
+                        : "Artificial Intelligence Masterclasses"}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="bg-white/80 p-2.5 rounded-xl border border-rose-200 text-[11px] text-rose-600 font-medium">
+                    ⚠️ Select a Driving course or Computer/AI package above.
+                  </div>
+                )}
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Adjust figures manually per institutional promotions, student discounts, or special group offers.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* GEAR TRANSMISSION: VISIBLE ONLY IF DRIVING IS ENROLLED */}
+          {hasDriving ? (
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
               <label className="block font-bold text-slate-800 text-xs">
                 Gear Transmission Configuration *
@@ -432,87 +581,214 @@ export default function AdminAddStudentPage() {
               </div>
             </div>
           ) : (
-            <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-[11px] text-blue-800">
-              ℹ️ <strong>Computer / AI Enrolment:</strong> Vehicle gear transmission configuration is omitted for non-driving packages.
+            <div className="p-3.5 bg-blue-50/70 border border-blue-100 rounded-xl text-[11px] text-blue-800 flex items-center gap-2">
+              <span>ℹ️</span>
+              <span>
+                <strong>Non-driving Enrolment:</strong> Vehicle gear transmission configuration is omitted for Computer Packages and AI Masterclasses.
+              </span>
             </div>
           )}
 
-          {/* Instructor & NTSA Credentials */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs pt-2">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                {selectedPkg?.category?.toUpperCase().includes("COMPUTER") || selectedPkg?.name?.toLowerCase().includes("computer")
-                  ? "Assigned Computer Tutor"
-                  : selectedPkg?.category?.toUpperCase().includes("AI") || selectedPkg?.name?.toLowerCase().includes("artificial intelligence") || selectedPkg?.name?.toLowerCase().includes("ai")
-                  ? "Assigned AI Tutor"
-                  : "Assigned Driving Instructor"}
-              </label>
-              <select
-                value={form.instructorId}
-                onChange={(e) => setForm({ ...form, instructorId: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-orange-500"
-              >
-                <option value="">-- Assign Later --</option>
-                
-                {/* Driving Instructors */}
-                <optgroup label="🚗 Driving Instructors">
-                  {instructors
-                    .filter((inst) => inst.category === "DRIVING" || !inst.category)
-                    .map((inst) => (
-                      <option key={inst.id} value={inst.id}>
-                        {inst.firstName} {inst.lastName} ({inst.specializations || "Driving"})
-                      </option>
-                    ))}
-                </optgroup>
+          {/* INSTRUCTOR / TUTOR ASSIGNMENT & NTSA CREDENTIALS */}
+          {hasDriving ? (
+            // Student is taking Driving (or Driving + College)
+            hasCollege ? (
+              // Dual / Triple Enrollment: show Driving Instructor + College Tutor + NTSA fields
+              <div className="space-y-3 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Assigned Driving Instructor
+                    </label>
+                    <select
+                      value={form.instructorId}
+                      onChange={(e) => setForm({ ...form, instructorId: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-orange-500"
+                    >
+                      <option value="">-- Assign Later --</option>
+                      <optgroup label="🚗 Driving Instructors">
+                        {instructors
+                          .filter((inst) => inst.category === "DRIVING" || !inst.category)
+                          .map((inst) => (
+                            <option key={inst.id} value={inst.id}>
+                              {inst.firstName} {inst.lastName} ({inst.specializations || "Driving"})
+                            </option>
+                          ))}
+                      </optgroup>
+                    </select>
+                  </div>
 
-                {/* Computer Tutors */}
-                <optgroup label="💻 Computer Tutors">
-                  {instructors
-                    .filter((inst) => inst.category === "COMPUTER")
-                    .map((inst) => (
-                      <option key={inst.id} value={inst.id}>
-                        {inst.firstName} {inst.lastName} ({inst.labStation || "Computer Lab"})
-                      </option>
-                    ))}
-                </optgroup>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Assigned Computer / AI Tutor
+                    </label>
+                    <select
+                      value={collegeTutorId}
+                      onChange={(e) => setCollegeTutorId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-orange-500"
+                    >
+                      <option value="">-- Assign Later --</option>
+                      {(collegeTrack === "COMPUTER" || collegeTrack === "BOTH") && (
+                        <optgroup label="💻 Computer Tutors">
+                          {instructors
+                            .filter((inst) => inst.category === "COMPUTER")
+                            .map((inst) => (
+                              <option key={inst.id} value={inst.id}>
+                                {inst.firstName} {inst.lastName} ({inst.labStation || "Computer Lab"})
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
+                      {(collegeTrack === "AI" || collegeTrack === "BOTH") && (
+                        <optgroup label="🤖 AI Tutors">
+                          {instructors
+                            .filter((inst) => inst.category === "AI")
+                            .map((inst) => (
+                              <option key={inst.id} value={inst.id}>
+                                {inst.firstName} {inst.lastName} ({inst.labStation || "AI Suite"})
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
+                    </select>
+                  </div>
+                </div>
 
-                {/* AI Tutors */}
-                <optgroup label="🤖 Modern AI Tutors">
-                  {instructors
-                    .filter((inst) => inst.category === "AI")
-                    .map((inst) => (
-                      <option key={inst.id} value={inst.id}>
-                        {inst.firstName} {inst.lastName} ({inst.labStation || "AI Suite"})
-                      </option>
-                    ))}
-                </optgroup>
-              </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      NTSA PDL Number (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. PDL-2026-9901"
+                      value={form.pdlNumber}
+                      onChange={(e) => setForm({ ...form, pdlNumber: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-orange-500 font-mono"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-0.5">Applies to the Driving component only.</p>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      eCitizen Application Ref
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. EC-NTSA-88401"
+                      value={form.eCitizenRef}
+                      onChange={(e) => setForm({ ...form, eCitizenRef: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-orange-500 font-mono"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-0.5">Applies to the Driving component only.</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Driving Only: show Driving Instructor + NTSA fields
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs pt-2">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Assigned Driving Instructor
+                  </label>
+                  <select
+                    value={form.instructorId}
+                    onChange={(e) => setForm({ ...form, instructorId: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-orange-500"
+                  >
+                    <option value="">-- Assign Later --</option>
+                    <optgroup label="🚗 Driving Instructors">
+                      {instructors
+                        .filter((inst) => inst.category === "DRIVING" || !inst.category)
+                        .map((inst) => (
+                          <option key={inst.id} value={inst.id}>
+                            {inst.firstName} {inst.lastName} ({inst.specializations || "Driving"})
+                          </option>
+                        ))}
+                    </optgroup>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    NTSA PDL Number (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. PDL-2026-9901"
+                    value={form.pdlNumber}
+                    onChange={(e) => setForm({ ...form, pdlNumber: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-orange-500 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    eCitizen Application Ref
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. EC-NTSA-88401"
+                    value={form.eCitizenRef}
+                    onChange={(e) => setForm({ ...form, eCitizenRef: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-orange-500 font-mono"
+                  />
+                </div>
+              </div>
+            )
+          ) : (
+            // Non-driving Enrolment (Computer / AI only):
+            // NTSA PDL and eCitizen Ref are NOT REQUIRED and are completely omitted!
+            <div className="space-y-3 pt-2">
+              <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl text-[11px] text-emerald-900 flex items-center gap-2.5">
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>
+                  <strong>Non-driving Enrolment:</strong> The section for <strong>NTSA PDL Number</strong> and <strong>eCitizen Application Ref</strong> is <strong>not required</strong> for Computer Packages and AI Masterclasses.
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    {collegeTrack === "COMPUTER"
+                      ? "Assigned Computer Tutor"
+                      : collegeTrack === "AI"
+                      ? "Assigned AI Tutor"
+                      : "Assigned College Lead Tutor"}
+                  </label>
+                  <select
+                    value={collegeTutorId || form.instructorId}
+                    onChange={(e) => {
+                      setCollegeTutorId(e.target.value);
+                      setForm({ ...form, instructorId: e.target.value });
+                    }}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-orange-500"
+                  >
+                    <option value="">-- Assign Later --</option>
+                    {(collegeTrack === "COMPUTER" || collegeTrack === "BOTH") && (
+                      <optgroup label="💻 Computer Tutors">
+                        {instructors
+                          .filter((inst) => inst.category === "COMPUTER")
+                          .map((inst) => (
+                            <option key={inst.id} value={inst.id}>
+                              {inst.firstName} {inst.lastName} ({inst.labStation || "Computer Lab"})
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                    {(collegeTrack === "AI" || collegeTrack === "BOTH") && (
+                      <optgroup label="🤖 Modern AI Tutors">
+                        {instructors
+                          .filter((inst) => inst.category === "AI")
+                          .map((inst) => (
+                            <option key={inst.id} value={inst.id}>
+                              {inst.firstName} {inst.lastName} ({inst.labStation || "AI Suite"})
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                  </select>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                NTSA PDL Number (Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. PDL-2026-9901"
-                value={form.pdlNumber}
-                onChange={(e) => setForm({ ...form, pdlNumber: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-orange-500 font-mono"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                eCitizen Application Ref
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. EC-NTSA-88401"
-                value={form.eCitizenRef}
-                onChange={(e) => setForm({ ...form, eCitizenRef: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-orange-500 font-mono"
-              />
-            </div>
-          </div>
+          )}
         </div>
 
         {/* SECTION 3: NEXT OF KIN & HOW YOU FOUND US */}

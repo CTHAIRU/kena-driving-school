@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
   detectCourseType,
+  detectStudentCourses,
   ensureStudentModuleProgress,
   generateCertificateNumber,
+  CourseType,
 } from "@/lib/courseProgress";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +14,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");
+    const requestedCourseType = searchParams.get("courseType") as CourseType | null;
 
     if (!studentId) {
       return NextResponse.json({ error: "studentId query parameter is required" }, { status: 400 });
@@ -29,7 +32,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
-    const courseType = detectCourseType(student.package?.name, student.licenseCategory);
+    const detected = detectStudentCourses(student.package?.name, student.licenseCategory);
+    const courseType: CourseType =
+      requestedCourseType && (requestedCourseType === "COMPUTER" || requestedCourseType === "AI")
+        ? requestedCourseType
+        : detected.hasComputer
+        ? "COMPUTER"
+        : detected.hasAI
+        ? "AI"
+        : detected.primaryCourseType;
+
     const modules = await ensureStudentModuleProgress(studentId, courseType);
 
     const totalModules = courseType === "COMPUTER" ? 10 : courseType === "AI" ? 9 : 0;
@@ -59,6 +71,7 @@ export async function GET(request: Request) {
         certificateRemarks: student.certificateRemarks,
       },
       courseType,
+      detectedCourses: detected,
       modules,
       summary: {
         totalModules,

@@ -26,17 +26,61 @@ export const AI_MODULES = [
 export type CourseType = "DRIVING" | "COMPUTER" | "AI";
 export type CertificateStatus = "UNCOLLECTED" | "PRINTING" | "COLLECTED";
 
-export function detectCourseType(pkgName?: string | null, category?: string | null): CourseType {
+export function detectStudentCourses(pkgName?: string | null, category?: string | null): {
+  hasDriving: boolean;
+  hasComputer: boolean;
+  hasAI: boolean;
+  primaryCourseType: CourseType;
+} {
   const name = (pkgName || "").toLowerCase();
   const cat = (category || "").toLowerCase();
+  const combined = `${name} ${cat}`;
 
-  if (name.includes("computer") || cat.includes("computer")) {
-    return "COMPUTER";
+  const hasComputer = combined.includes("computer");
+  const hasAI =
+    combined.includes("artificial") ||
+    combined.includes("masterclass") ||
+    combined.includes("modern ai") ||
+    combined.includes("creative media") ||
+    combined.includes("ai academy") ||
+    /\b(ai)\b/i.test(combined);
+
+  // Driving is present if any driving class or vehicle keyword is mentioned, or if neither computer nor AI is present
+  const hasDriving =
+    combined.includes("motorcycle") ||
+    combined.includes("vehicle") ||
+    combined.includes("truck") ||
+    combined.includes("bus") ||
+    combined.includes("van") ||
+    combined.includes("driving") ||
+    combined.includes("manual") ||
+    combined.includes("automatic") ||
+    combined.includes("category a") ||
+    combined.includes("category b") ||
+    combined.includes("category c") ||
+    combined.includes("category d") ||
+    /\b(a1|a2|a3|b1|b2|b professional|c1|c|ce|cd|d1|d2|d3|d4)\b/i.test(combined) ||
+    (!hasComputer && !hasAI);
+
+  let primaryCourseType: CourseType = "DRIVING";
+  if (hasComputer && !hasDriving) {
+    primaryCourseType = "COMPUTER";
+  } else if (hasAI && !hasDriving && !hasComputer) {
+    primaryCourseType = "AI";
+  } else if (hasDriving) {
+    primaryCourseType = "DRIVING";
+  } else if (hasComputer) {
+    primaryCourseType = "COMPUTER";
+  } else {
+    primaryCourseType = "AI";
   }
-  if (name.includes("artificial") || name.includes("ai") || cat.includes("ai")) {
-    return "AI";
-  }
-  return "DRIVING";
+
+  return { hasDriving, hasComputer, hasAI, primaryCourseType };
+}
+
+export function detectCourseType(pkgName?: string | null, category?: string | null): CourseType {
+  const { primaryCourseType } = detectStudentCourses(pkgName, category);
+  return primaryCourseType;
 }
 
 export function generateCertificateNumber(courseType: CourseType, admissionOrId: string): string {
@@ -45,3 +89,4 @@ export function generateCertificateNumber(courseType: CourseType, admissionOrId:
   const prefix = courseType === "COMPUTER" ? "COMP" : courseType === "AI" ? "AIM" : "DRV";
   return `KENA-CERT-${prefix}-${year}-${cleanId}`;
 }
+
