@@ -111,6 +111,8 @@ export async function DELETE(
     await db.exam.deleteMany({ where: { studentId: params.id } }).catch(() => {});
     await db.lesson.deleteMany({ where: { studentId: params.id } }).catch(() => {});
     await db.payment.deleteMany({ where: { studentId: params.id } }).catch(() => {});
+    await db.studentModuleProgress.deleteMany({ where: { studentId: params.id } }).catch(() => {});
+    await db.practicalSheetEntry.deleteMany({ where: { studentId: params.id } }).catch(() => {});
 
     await db.student.delete({
       where: { id: params.id },

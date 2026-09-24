@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getNextAdmissionNumber } from "@/lib/admissionNumber";
 
 export const dynamic = "force-dynamic";
 
@@ -109,25 +110,49 @@ export async function POST(request: Request) {
         );
       }
 
-      const cleanEmail = email.toLowerCase().trim();
-      const existing = await db.student.findUnique({ where: { email: cleanEmail } });
-      if (existing) {
-        return NextResponse.json(
-          { error: "A student with this email already exists" },
-          { status: 400 }
-        );
-      }
+      const cleanEmail = String(email).toLowerCase().trim();
+      const cleanId = idNumber ? String(idNumber).trim() : `ID-${Date.now().toString().slice(-6)}`;
+      const cleanAdm = admissionNumber?.trim() ? String(admissionNumber).trim() : await getNextAdmissionNumber();
 
-      const genAdm = admissionNumber || `KNA-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
+      const existing = await db.student.findFirst({
+        where: {
+          OR: [
+            { email: cleanEmail },
+            { idNumber: cleanId },
+            { admissionNumber: cleanAdm },
+          ],
+        },
+      });
+
+      if (existing) {
+        if (existing.admissionNumber === cleanAdm) {
+          return NextResponse.json(
+            { error: `Admission number "${cleanAdm}" is already assigned.` },
+            { status: 400 }
+          );
+        }
+        if (existing.email.toLowerCase() === cleanEmail) {
+          return NextResponse.json(
+            { error: `A student with email "${cleanEmail}" already exists` },
+            { status: 400 }
+          );
+        }
+        if (existing.idNumber === cleanId) {
+          return NextResponse.json(
+            { error: `A student with ID number "${cleanId}" already exists` },
+            { status: 400 }
+          );
+        }
+      }
 
       const student = await db.student.create({
         data: {
-          firstName,
-          lastName,
+          firstName: String(firstName).trim(),
+          lastName: String(lastName).trim(),
           email: cleanEmail,
-          phone: phone || "+254 700 000 000",
-          idNumber: idNumber || `ID-${Date.now().toString().slice(-6)}`,
-          admissionNumber: genAdm,
+          phone: phone ? String(phone).trim() : "+254 700 000 000",
+          idNumber: cleanId,
+          admissionNumber: cleanAdm,
           dateOfBirth: dateOfBirth || null,
           licenseCategory: licenseCategory || "Category B - Light Vehicle",
           transmission: transmission || "MANUAL",
@@ -154,6 +179,27 @@ export async function POST(request: Request) {
     }
   } catch (e: any) {
     console.error("Registration API error:", e);
+    if (e.code === "P2002") {
+      const targets = Array.isArray(e.meta?.target) ? e.meta.target : [e.meta?.target];
+      if (targets.some((t: any) => String(t).includes("admissionNumber"))) {
+        return NextResponse.json(
+          { error: "This admission number is already taken. Please try again." },
+          { status: 409 }
+        );
+      }
+      if (targets.some((t: any) => String(t).includes("idNumber"))) {
+        return NextResponse.json(
+          { error: "A student with this ID number already exists." },
+          { status: 409 }
+        );
+      }
+      if (targets.some((t: any) => String(t).includes("email"))) {
+        return NextResponse.json(
+          { error: "An account with this email already exists." },
+          { status: 409 }
+        );
+      }
+    }
     return NextResponse.json(
       { error: e.message || "Registration failed" },
       { status: 500 }

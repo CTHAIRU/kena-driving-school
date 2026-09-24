@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, Check, ArrowLeft, Car, Award, Sparkles, AlertCircle } from "lucide-react";
+import { UserPlus, Check, ArrowLeft, Car, Award, Sparkles, AlertCircle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 
@@ -30,6 +30,9 @@ export default function AdminAddStudentPage() {
   const [instructors, setInstructors] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [errorField, setErrorField] = useState<string | null>(null);
+  const [suggestedAdm, setSuggestedAdm] = useState("");
+  const [loadingAdm, setLoadingAdm] = useState(false);
   const [success, setSuccess] = useState(false);
 
   // Separated Course Selections
@@ -88,7 +91,29 @@ export default function AdminAddStudentPage() {
       pkg.name.toLowerCase().includes("modern ai")
   );
 
+  const fetchNextAdm = async () => {
+    try {
+      setLoadingAdm(true);
+      const res = await fetch("/api/students/next-admission");
+      const json = await res.json();
+      if (json.nextAdmissionNumber) {
+        setSuggestedAdm(json.nextAdmissionNumber);
+        setForm((prev) => {
+          if (!prev.admissionNumber || prev.admissionNumber.startsWith("KNA-")) {
+            return { ...prev, admissionNumber: json.nextAdmissionNumber };
+          }
+          return prev;
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch next admission number:", err);
+    } finally {
+      setLoadingAdm(false);
+    }
+  };
+
   useEffect(() => {
+    fetchNextAdm();
     Promise.all([
       fetch("/api/billing").then((r) => r.json()),
       fetch("/api/instructors").then((r) => r.json()),
@@ -175,6 +200,8 @@ export default function AdminAddStudentPage() {
     }
 
     setSubmitting(true);
+    setError("");
+    setErrorField(null);
 
     try {
       // Build composite category name
@@ -222,8 +249,15 @@ export default function AdminAddStudentPage() {
         }),
       });
 
+      const json = await res.json();
+
       if (!res.ok) {
-        const json = await res.json();
+        if (json.field) {
+          setErrorField(json.field);
+          if (json.field === "admissionNumber") {
+            fetchNextAdm();
+          }
+        }
         throw new Error(json.error || "Failed to enroll student");
       }
 
@@ -261,9 +295,28 @@ export default function AdminAddStudentPage() {
       </div>
 
       {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{error}</span>
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-rose-900">Registration Conflict</p>
+              <p className="mt-0.5">{error}</p>
+            </div>
+          </div>
+          {errorField === "admissionNumber" && suggestedAdm && (
+            <button
+              type="button"
+              onClick={() => {
+                setForm((prev) => ({ ...prev, admissionNumber: suggestedAdm }));
+                setError("");
+                setErrorField(null);
+              }}
+              className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shrink-0 transition-colors shadow-xs flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Use Available Number ({suggestedAdm})
+            </button>
+          )}
         </div>
       )}
 
@@ -282,22 +335,43 @@ export default function AdminAddStudentPage() {
               <span className="w-2 h-2 rounded-full bg-orange-600" />
               1. Candidate Details &amp; Admission Number
             </h3>
-            <span className="text-[11px] text-slate-400 font-mono">Manual Admission Allocation</span>
+            <span className="text-[11px] text-slate-400 font-mono">Sequential or Manual Ledger</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Admission Number * (Fed Manually)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-semibold text-slate-700">
+                  Admission Number *
+                </label>
+                <button
+                  type="button"
+                  onClick={fetchNextAdm}
+                  disabled={loadingAdm}
+                  className="text-[11px] text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loadingAdm ? "animate-spin" : ""}`} />
+                  {loadingAdm ? "Checking..." : "Auto-Generate"}
+                </button>
+              </div>
               <input
                 type="text"
                 required
-                placeholder="e.g. KNA-2026-089"
+                placeholder="e.g. KNA-2026-010"
                 value={form.admissionNumber}
-                onChange={(e) => setForm({ ...form, admissionNumber: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:border-orange-500"
+                onChange={(e) => {
+                  setForm({ ...form, admissionNumber: e.target.value });
+                  if (errorField === "admissionNumber") setErrorField(null);
+                }}
+                className={`w-full px-3.5 py-2.5 rounded-xl font-mono font-bold focus:outline-none transition-colors ${
+                  errorField === "admissionNumber"
+                    ? "bg-rose-50 border-2 border-rose-500 text-rose-900"
+                    : "bg-slate-50 border border-slate-200 text-slate-900 focus:border-orange-500"
+                }`}
               />
+              <p className="text-[10px] text-slate-400 mt-1">
+                Suggested sequential: <span className="font-mono font-bold text-slate-600">{suggestedAdm || "KNA-..."}</span> (or enter manual book ledger number)
+              </p>
             </div>
             <div>
               <label className="block font-semibold text-slate-700 mb-1">First Name *</label>
@@ -341,8 +415,15 @@ export default function AdminAddStudentPage() {
                 required
                 placeholder="e.g. 38291044"
                 value={form.idNumber}
-                onChange={(e) => setForm({ ...form, idNumber: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-orange-500"
+                onChange={(e) => {
+                  setForm({ ...form, idNumber: e.target.value });
+                  if (errorField === "idNumber") setErrorField(null);
+                }}
+                className={`w-full px-3.5 py-2.5 rounded-xl text-slate-900 focus:outline-none transition-colors ${
+                  errorField === "idNumber"
+                    ? "bg-rose-50 border-2 border-rose-500 text-rose-900"
+                    : "bg-slate-50 border border-slate-200 focus:border-orange-500"
+                }`}
               />
             </div>
             <div>
@@ -366,8 +447,15 @@ export default function AdminAddStudentPage() {
                 required
                 placeholder="candidate@gmail.com"
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-orange-500"
+                onChange={(e) => {
+                  setForm({ ...form, email: e.target.value });
+                  if (errorField === "email") setErrorField(null);
+                }}
+                className={`w-full px-3.5 py-2.5 rounded-xl text-slate-900 focus:outline-none transition-colors ${
+                  errorField === "email"
+                    ? "bg-rose-50 border-2 border-rose-500 text-rose-900"
+                    : "bg-slate-50 border border-slate-200 focus:border-orange-500"
+                }`}
               />
             </div>
             <div>

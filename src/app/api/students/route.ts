@@ -6,6 +6,9 @@ import {
   AI_MODULES,
   detectStudentCourses,
 } from "@/lib/courseProgressShared";
+import { getNextAdmissionNumber } from "@/lib/admissionNumber";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
@@ -28,6 +31,7 @@ export async function GET(request: Request) {
         { email: { contains: search } },
         { phone: { contains: search } },
         { idNumber: { contains: search } },
+        { admissionNumber: { contains: search } },
       ];
     }
 
@@ -57,6 +61,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  let cleanAdmissionNumber = "";
+  let cleanEmail = "";
+  let cleanIdNumber = "";
+
   try {
     const body = await request.json();
     const {
@@ -87,9 +95,72 @@ export async function POST(request: Request) {
 
     if (!firstName || !lastName || !email || !phone || !idNumber || !licenseCategory) {
       return NextResponse.json(
-        { error: "Missing required student information" },
+        { error: "Missing required student information (first name, last name, email, phone, ID number, and course category)." },
         { status: 400 }
       );
+    }
+
+    // Clean & normalize credentials
+    cleanEmail = String(email).trim().toLowerCase();
+    cleanIdNumber = String(idNumber).trim();
+    const cleanFirstName = String(firstName).trim();
+    const cleanLastName = String(lastName).trim();
+    const cleanPhone = String(phone).trim();
+
+    cleanAdmissionNumber = admissionNumber?.trim()
+      ? String(admissionNumber).trim()
+      : await getNextAdmissionNumber();
+
+    // Proactively verify uniqueness across email, idNumber, and admissionNumber
+    const conflictingRecord = await db.student.findFirst({
+      where: {
+        OR: [
+          { email: cleanEmail },
+          { idNumber: cleanIdNumber },
+          { admissionNumber: cleanAdmissionNumber },
+        ],
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        idNumber: true,
+        admissionNumber: true,
+      },
+    });
+
+    if (conflictingRecord) {
+      if (conflictingRecord.admissionNumber === cleanAdmissionNumber) {
+        return NextResponse.json(
+          {
+            error: `Admission Number "${cleanAdmissionNumber}" is already assigned to student ${conflictingRecord.firstName} ${conflictingRecord.lastName}. Please enter a unique admission number or click Auto-Generate.`,
+            field: "admissionNumber",
+            conflictingStudent: `${conflictingRecord.firstName} ${conflictingRecord.lastName}`,
+          },
+          { status: 409 }
+        );
+      }
+      if (conflictingRecord.email.toLowerCase() === cleanEmail) {
+        return NextResponse.json(
+          {
+            error: `A student with email "${cleanEmail}" is already registered (${conflictingRecord.firstName} ${conflictingRecord.lastName}).`,
+            field: "email",
+            conflictingStudent: `${conflictingRecord.firstName} ${conflictingRecord.lastName}`,
+          },
+          { status: 409 }
+        );
+      }
+      if (conflictingRecord.idNumber === cleanIdNumber) {
+        return NextResponse.json(
+          {
+            error: `A student with National ID / Passport Number "${cleanIdNumber}" is already registered (${conflictingRecord.firstName} ${conflictingRecord.lastName}).`,
+            field: "idNumber",
+            conflictingStudent: `${conflictingRecord.firstName} ${conflictingRecord.lastName}`,
+          },
+          { status: 409 }
+        );
+      }
     }
 
     // Determine course tracks from explicit inputs or licenseCategory
@@ -134,16 +205,14 @@ export async function POST(request: Request) {
       }
     }
 
-    const genAdm = admissionNumber?.trim() || `KNA-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
-
     const newStudent = await db.student.create({
       data: {
-        firstName,
-        lastName,
-        email,
-        phone,
-        idNumber,
-        admissionNumber: genAdm,
+        firstName: cleanFirstName,
+        lastName: cleanLastName,
+        email: cleanEmail,
+        phone: cleanPhone,
+        idNumber: cleanIdNumber,
+        admissionNumber: cleanAdmissionNumber,
         dateOfBirth: dateOfBirth || null,
         customTuitionFee: balance,
         // NTSA PDL and eCitizen are only saved if driving is enrolled
@@ -214,12 +283,47 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Students POST error:", error);
     if (error.code === "P2002") {
+      const targets = Array.isArray(error.meta?.target)
+        ? error.meta.target
+        : typeof error.meta?.target === "string"
+        ? [error.meta.target]
+        : [];
+
+      if (targets.some((t: string) => t.includes("admissionNumber"))) {
+        return NextResponse.json(
+          {
+            error: `Admission Number "${cleanAdmissionNumber}" is already in use by another student. Please enter a different admission number or click Auto-Generate.`,
+            field: "admissionNumber",
+          },
+          { status: 409 }
+        );
+      }
+      if (targets.some((t: string) => t.includes("email"))) {
+        return NextResponse.json(
+          {
+            error: `A student with email "${cleanEmail}" is already registered in the system.`,
+            field: "email",
+          },
+          { status: 409 }
+        );
+      }
+      if (targets.some((t: string) => t.includes("idNumber"))) {
+        return NextResponse.json(
+          {
+            error: `A student with National ID / Passport Number "${cleanIdNumber}" is already registered in the system.`,
+            field: "idNumber",
+          },
+          { status: 409 }
+        );
+      }
+
       return NextResponse.json(
-        { error: "A student with this email or ID number already exists." },
+        {
+          error: `A student record with conflicting unique credentials (${targets.join(", ") || "field"}) already exists.`,
+        },
         { status: 409 }
       );
     }
     return NextResponse.json({ error: "Failed to enroll student" }, { status: 500 });
   }
 }
-
